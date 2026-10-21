@@ -3,7 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const { errors } = require('celebrate');
+const { isCelebrateError } = require('celebrate');
 
 const usersRouter = require('./routes/users');
 const cardsRouter = require('./routes/cards');
@@ -39,11 +39,9 @@ app.get('/crash-test', () => {
 app.post('/signup', validateSignup, createUser);
 app.post('/signin', validateSignin, login);
 
-// daqui para baixo, tudo exige token
-app.use(auth);
-
-app.use('/users', usersRouter);
-app.use('/cards', cardsRouter);
+// rotas protegidas: exigem token
+app.use('/users', auth, usersRouter);
+app.use('/cards', auth, cardsRouter);
 
 app.use((req, res, next) => {
   next(new NotFoundError('Recurso requisitado não encontrado'));
@@ -51,13 +49,15 @@ app.use((req, res, next) => {
 
 app.use(errorLogger); // registra cada erro em error.log
 
-// erros de validação do celebrate (400)
-app.use(errors());
-
-// tratamento centralizado de erros
+// tratamento centralizado de erros (inclui os de validação do celebrate)
 app.use((err, req, res, next) => {
+  if (isCelebrateError(err)) {
+    const [details] = err.details.values();
+    return res.status(400).send({ message: details.message });
+  }
+
   const { statusCode = 500, message } = err;
-  res.status(statusCode).send({
+  return res.status(statusCode).send({
     message: statusCode === 500 ? 'Ocorreu um erro no servidor' : message,
   });
 });
