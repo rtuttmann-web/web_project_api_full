@@ -1,0 +1,18 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Diretório de dependências
+node_modules
+
+# Diretório de cache npm opcional
+.npm
+
+# Variáveis de ambiente
+.env
+
+# Arquivos do sistema e pastas de configurações IDE
+.DS_Store
+.idea
+.vscode

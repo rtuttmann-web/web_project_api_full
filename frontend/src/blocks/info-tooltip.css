@@ -1,0 +1,34 @@
+.info-tooltip {
+  min-height: 330px;
+  padding: 60px 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.info-tooltip__icon {
+  width: 120px;
+  height: 120px;
+}
+
+.info-tooltip__text {
+  margin: 32px 0 0;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 29px;
+  text-align: center;
+  color: #000;
+}
+
+@media screen and (max-width: 544px) {
+  .info-tooltip {
+    min-height: 308px;
+    padding: 50px 18px;
+  }
+
+  .info-tooltip__text {
+    margin-top: 40px;
+    font-size: 20px;
+    line-height: 24px;
+  }
+}
