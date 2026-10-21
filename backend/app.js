@@ -1,5 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const cors = require('cors');
 
 const usersRouter = require('./routes/users');
 const cardsRouter = require('./routes/cards');
@@ -12,6 +13,13 @@ const app = express();
 
 mongoose.connect('mongodb://localhost:27017/aroundb');
 
+const allowedOrigins = [
+  'https://around-rtuttmann.networkoutpost.com',
+  'https://www.around-rtuttmann.networkoutpost.com',
+  'http://localhost:5173',
+];
+
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
 // rotas públicas

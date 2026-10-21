@@ -1,4 +1,6 @@
-export const BASE_URL = "https://se-register-api.en.tripleten-services.com/v1";
+export const BASE_URL = import.meta.env.PROD
+  ? "https://api.around-rtuttmann.networkoutpost.com"
+  : "http://localhost:3000";
 
 function checkResponse(res) {
   return res.ok ? res.json() : Promise.reject(`Erro: ${res.status}`);

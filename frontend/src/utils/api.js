@@ -1,7 +1,13 @@
+import { BASE_URL } from "./auth";
+
 class Api {
-  constructor({ baseUrl, headers }) {
+  constructor({ baseUrl }) {
     this._baseUrl = baseUrl;
-    this._headers = headers;
+    this._token = "";
+  }
+
+  setToken(token) {
+    this._token = token;
   }
 
   _checkResponse(res) {
@@ -11,21 +17,25 @@ class Api {
     return Promise.reject(`Erro: ${res.status}`);
   }
 
+  _headers() {
+    return { authorization: `Bearer ${this._token}` };
+  }
+
   _jsonHeaders() {
-    return { ...this._headers, "Content-Type": "application/json" };
+    return { ...this._headers(), "Content-Type": "application/json" };
   }
 
   getUserInfo() {
     return fetch(`${this._baseUrl}/users/me`, {
-      headers: this._headers,
+      headers: this._headers(),
     }).then(this._checkResponse);
   }
 
   getInitialCards() {
-  return fetch(`${this._baseUrl}/cards`, {
-    headers: this._headers,
-  }).then(this._checkResponse);
-}
+    return fetch(`${this._baseUrl}/cards`, {
+      headers: this._headers(),
+    }).then(this._checkResponse);
+  }
 
   getAppInfo() {
     return Promise.all([this.getUserInfo(), this.getInitialCards()]);
@@ -58,23 +68,18 @@ class Api {
   deleteCard(cardId) {
     return fetch(`${this._baseUrl}/cards/${cardId}`, {
       method: "DELETE",
-      headers: this._headers,
+      headers: this._headers(),
     }).then(this._checkResponse);
   }
 
   changeLikeCardStatus(cardId, isLiked) {
     return fetch(`${this._baseUrl}/cards/${cardId}/likes`, {
       method: isLiked ? "PUT" : "DELETE",
-      headers: this._headers,
+      headers: this._headers(),
     }).then(this._checkResponse);
   }
 }
 
-const api = new Api({
-  baseUrl: "https://around-api.pt-br.tripleten-services.com/v1",
-  headers: {
-    authorization: "bb9acd40-9e8d-4b10-837c-bfd2a22e7e0e",
-  },
-});
+const api = new Api({ baseUrl: BASE_URL });
 
 export default api;

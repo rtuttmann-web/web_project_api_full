@@ -16,38 +16,44 @@ function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [popup, setPopup] = useState(null);
   const [cards, setCards] = useState([]);
+  const [jwt, setJwt] = useState(getToken() || "");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [isInfoTooltipOpen, setIsInfoTooltipOpen] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [isTokenChecked, setIsTokenChecked] = useState(false);
+  const [isTokenChecked, setIsTokenChecked] = useState(!getToken());
 
   const navigate = useNavigate();
 
-  // Verifica se há um JWT ao montar o App
+  // Verifica se há um JWT salvo ao montar o App
   useEffect(() => {
-    const jwt = getToken();
+    const savedToken = getToken();
 
-    if (!jwt) {
-      setIsTokenChecked(true);
+        if (!savedToken) {
       return;
     }
 
     auth
-      .checkToken(jwt)
-      .then(({ data }) => {
-        setUserEmail(data.email);
+      .checkToken(savedToken)
+      .then((user) => {
+        setUserEmail(user.email);
         setIsLoggedIn(true);
       })
-      .catch((error) => console.error(error))
+      .catch((error) => {
+        console.error(error);
+        removeToken();
+        setJwt("");
+      })
       .finally(() => setIsTokenChecked(true));
   }, []);
 
   // Dados do usuário e cartões: carregados quando o usuário entra
   useEffect(() => {
-    if (!isLoggedIn) {
+    if (!isLoggedIn || !jwt) {
       return;
     }
+
+    api.setToken(jwt);
 
     api
       .getUserInfo()
@@ -62,7 +68,7 @@ function App() {
         setCards(cardsData);
       })
       .catch((error) => console.error(error));
-  }, [isLoggedIn]);
+  }, [isLoggedIn, jwt]);
 
   function handleRegister({ email, password }) {
     auth
@@ -89,6 +95,7 @@ function App() {
       .then((data) => {
         if (data.token) {
           setToken(data.token);
+          setJwt(data.token);
           setUserEmail(email);
           setIsLoggedIn(true);
           navigate("/");
@@ -103,6 +110,8 @@ function App() {
 
   function handleSignOut() {
     removeToken();
+    setJwt("");
+    api.setToken("");
     setIsLoggedIn(false);
     setUserEmail("");
     setCurrentUser(null);
@@ -143,7 +152,7 @@ function App() {
   };
 
   async function handleCardLike(card) {
-    const isLiked = card.isLiked;
+    const isLiked = card.likes.some((id) => id === currentUser._id);
 
     await api
       .changeLikeCardStatus(card._id, !isLiked)

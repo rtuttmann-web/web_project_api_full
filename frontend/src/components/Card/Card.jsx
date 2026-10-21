@@ -10,7 +10,7 @@ export default function Card(props) {
   const ownerId =
     typeof card.owner === "string" ? card.owner : card.owner?._id;
   const isOwn = currentUser && ownerId === currentUser._id;
-  const isLiked = card.isLiked;
+    const isLiked = Boolean(currentUser) && card.likes.some((id) => id === currentUser._id);
 
   const imageComponent = { children: <ImagePopup card={card} /> };
 
