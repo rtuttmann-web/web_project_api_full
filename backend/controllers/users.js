@@ -1,10 +1,16 @@
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 const {
   BAD_REQUEST,
+  UNAUTHORIZED,
   NOT_FOUND,
+  CONFLICT,
   SERVER_ERROR,
   SERVER_ERROR_MESSAGE,
 } = require('../utils/errors');
+
+const { NODE_ENV, JWT_SECRET } = process.env;
 
 const throwUserNotFound = () => {
   const error = new Error('ID de usuário não encontrado');
@@ -13,6 +19,9 @@ const throwUserNotFound = () => {
 };
 
 const handleUserError = (err, res) => {
+  if (err.code === 11000) {
+    return res.status(CONFLICT).send({ message: 'Este e-mail já está cadastrado' });
+  }
   if (err.name === 'ValidationError') {
     return res.status(BAD_REQUEST).send({ message: 'Dados inválidos para o usuário' });
   }
@@ -31,6 +40,13 @@ module.exports.getUsers = (req, res) => {
     .catch((err) => handleUserError(err, res));
 };
 
+module.exports.getCurrentUser = (req, res) => {
+  User.findById(req.user._id)
+    .orFail(throwUserNotFound)
+    .then((user) => res.send(user))
+    .catch((err) => handleUserError(err, res));
+};
+
 module.exports.getUserById = (req, res) => {
   User.findById(req.params.userId)
     .orFail(throwUserNotFound)
@@ -39,11 +55,43 @@ module.exports.getUserById = (req, res) => {
 };
 
 module.exports.createUser = (req, res) => {
-  const { name, about, avatar } = req.body;
+  const {
+    name, about, avatar, email, password,
+  } = req.body;
 
-  User.create({ name, about, avatar })
-    .then((user) => res.status(201).send(user))
+  if (!password) {
+    return res.status(BAD_REQUEST).send({ message: 'A senha é obrigatória' });
+  }
+
+  return bcrypt.hash(password, 10)
+    .then((hash) => User.create({
+      name, about, avatar, email, password: hash,
+    }))
+    .then((user) => res.status(201).send({
+      _id: user._id,
+      name: user.name,
+      about: user.about,
+      avatar: user.avatar,
+      email: user.email,
+    }))
     .catch((err) => handleUserError(err, res));
+};
+
+module.exports.login = (req, res) => {
+  const { email, password } = req.body;
+
+  return User.findUserByCredentials(email, password)
+    .then((user) => {
+      const token = jwt.sign(
+        { _id: user._id },
+        NODE_ENV === 'production' ? JWT_SECRET : 'dev-secret',
+        { expiresIn: '7d' },
+      );
+      res.send({ token });
+    })
+    .catch((err) => {
+      res.status(UNAUTHORIZED).send({ message: err.message });
+    });
 };
 
 module.exports.updateProfile = (req, res) => {

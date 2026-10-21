@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 
 const usersRouter = require('./routes/users');
 const cardsRouter = require('./routes/cards');
+const { createUser, login } = require('./controllers/users');
+const auth = require('./middlewares/auth');
 const { NOT_FOUND } = require('./utils/errors');
 
 const { PORT = 3000 } = process.env;
@@ -12,13 +14,12 @@ mongoose.connect('mongodb://localhost:27017/aroundb');
 
 app.use(express.json());
 
-app.use((req, res, next) => {
-  req.user = {
-    _id: '6ac3a0ce3f6497fbf7c1d3c6',
-  };
+// rotas públicas
+app.post('/signup', createUser);
+app.post('/signin', login);
 
-  next();
-});
+// daqui para baixo, tudo exige token
+app.use(auth);
 
 app.use('/users', usersRouter);
 app.use('/cards', cardsRouter);

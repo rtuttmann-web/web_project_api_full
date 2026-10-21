@@ -1,6 +1,7 @@
 const Card = require('../models/card');
 const {
   BAD_REQUEST,
+  FORBIDDEN,
   NOT_FOUND,
   SERVER_ERROR,
   SERVER_ERROR_MESSAGE,
@@ -19,8 +20,8 @@ const handleCardError = (err, res) => {
   if (err.name === 'CastError') {
     return res.status(BAD_REQUEST).send({ message: 'ID de cartão inválido' });
   }
-  if (err.statusCode === NOT_FOUND) {
-    return res.status(NOT_FOUND).send({ message: err.message });
+  if (err.statusCode === NOT_FOUND || err.statusCode === FORBIDDEN) {
+    return res.status(err.statusCode).send({ message: err.message });
   }
   return res.status(SERVER_ERROR).send({ message: SERVER_ERROR_MESSAGE });
 };
@@ -41,9 +42,16 @@ module.exports.createCard = (req, res) => {
 };
 
 module.exports.deleteCard = (req, res) => {
-  Card.findByIdAndDelete(req.params.cardId)
+  Card.findById(req.params.cardId)
     .orFail(throwCardNotFound)
-    .then((card) => res.send(card))
+    .then((card) => {
+      if (card.owner.toString() !== req.user._id) {
+        const error = new Error('Você não pode excluir o cartão de outro usuário');
+        error.statusCode = FORBIDDEN;
+        throw error;
+      }
+      return card.deleteOne().then(() => res.send(card));
+    })
     .catch((err) => handleCardError(err, res));
 };
 
