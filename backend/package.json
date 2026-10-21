@@ -20,10 +20,14 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "celebrate": "^16.0.0",
     "cors": "^2.8.6",
+    "dotenv": "^18.0.8",
     "express": "^5.2.1",
+    "express-winston": "^4.2.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.10.4",
-    "validator": "^13.15.35"
+    "validator": "^13.15.35",
+    "winston": "^3.19.0"
   }
 }

@@ -2,68 +2,57 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 const {
-  BAD_REQUEST,
-  UNAUTHORIZED,
-  NOT_FOUND,
-  CONFLICT,
-  SERVER_ERROR,
-  SERVER_ERROR_MESSAGE,
+  BadRequestError,
+  UnauthorizedError,
+  NotFoundError,
+  ConflictError,
 } = require('../utils/errors');
 
 const { NODE_ENV, JWT_SECRET } = process.env;
 
 const throwUserNotFound = () => {
-  const error = new Error('ID de usuário não encontrado');
-  error.statusCode = NOT_FOUND;
-  throw error;
+  throw new NotFoundError('ID de usuário não encontrado');
 };
 
-const handleUserError = (err, res) => {
+const handleUserError = (err, next) => {
   if (err.code === 11000) {
-    return res.status(CONFLICT).send({ message: 'Este e-mail já está cadastrado' });
+    return next(new ConflictError('Este e-mail já está cadastrado'));
   }
   if (err.name === 'ValidationError') {
-    return res.status(BAD_REQUEST).send({ message: 'Dados inválidos para o usuário' });
+    return next(new BadRequestError('Dados inválidos para o usuário'));
   }
   if (err.name === 'CastError') {
-    return res.status(BAD_REQUEST).send({ message: 'ID de usuário inválido' });
+    return next(new BadRequestError('ID de usuário inválido'));
   }
-  if (err.statusCode === NOT_FOUND) {
-    return res.status(NOT_FOUND).send({ message: err.message });
-  }
-  return res.status(SERVER_ERROR).send({ message: SERVER_ERROR_MESSAGE });
+  return next(err);
 };
 
-module.exports.getUsers = (req, res) => {
+module.exports.getUsers = (req, res, next) => {
   User.find({})
     .then((users) => res.send(users))
-    .catch((err) => handleUserError(err, res));
+    .catch(next);
 };
 
-module.exports.getCurrentUser = (req, res) => {
+module.exports.getCurrentUser = (req, res, next) => {
   User.findById(req.user._id)
     .orFail(throwUserNotFound)
     .then((user) => res.send(user))
-    .catch((err) => handleUserError(err, res));
+    .catch((err) => handleUserError(err, next));
 };
 
-module.exports.getUserById = (req, res) => {
+module.exports.getUserById = (req, res, next) => {
   User.findById(req.params.userId)
     .orFail(throwUserNotFound)
     .then((user) => res.send(user))
-    .catch((err) => handleUserError(err, res));
+    .catch((err) => handleUserError(err, next));
 };
 
-module.exports.createUser = (req, res) => {
+module.exports.createUser = (req, res, next) => {
   const {
     name, about, avatar, email, password,
   } = req.body;
 
-  if (!password) {
-    return res.status(BAD_REQUEST).send({ message: 'A senha é obrigatória' });
-  }
-
-  return bcrypt.hash(password, 10)
+  bcrypt.hash(password, 10)
     .then((hash) => User.create({
       name, about, avatar, email, password: hash,
     }))
@@ -74,13 +63,13 @@ module.exports.createUser = (req, res) => {
       avatar: user.avatar,
       email: user.email,
     }))
-    .catch((err) => handleUserError(err, res));
+    .catch((err) => handleUserError(err, next));
 };
 
-module.exports.login = (req, res) => {
+module.exports.login = (req, res, next) => {
   const { email, password } = req.body;
 
-  return User.findUserByCredentials(email, password)
+  User.findUserByCredentials(email, password)
     .then((user) => {
       const token = jwt.sign(
         { _id: user._id },
@@ -89,35 +78,31 @@ module.exports.login = (req, res) => {
       );
       res.send({ token });
     })
-    .catch((err) => {
-      res.status(UNAUTHORIZED).send({ message: err.message });
-    });
+    .catch(() => next(new UnauthorizedError('E-mail ou senha incorretos')));
 };
 
-module.exports.updateProfile = (req, res) => {
+module.exports.updateProfile = (req, res, next) => {
   const { name, about } = req.body;
-  const { _id: userId } = req.user;
 
   User.findByIdAndUpdate(
-    userId,
+    req.user._id,
     { name, about },
     { new: true, runValidators: true },
   )
     .orFail(throwUserNotFound)
     .then((user) => res.send(user))
-    .catch((err) => handleUserError(err, res));
+    .catch((err) => handleUserError(err, next));
 };
 
-module.exports.updateAvatar = (req, res) => {
+module.exports.updateAvatar = (req, res, next) => {
   const { avatar } = req.body;
-  const { _id: userId } = req.user;
 
   User.findByIdAndUpdate(
-    userId,
+    req.user._id,
     { avatar },
     { new: true, runValidators: true },
   )
     .orFail(throwUserNotFound)
     .then((user) => res.send(user))
-    .catch((err) => handleUserError(err, res));
+    .catch((err) => handleUserError(err, next));
 };

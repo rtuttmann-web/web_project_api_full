@@ -1,82 +1,69 @@
 const Card = require('../models/card');
 const {
-  BAD_REQUEST,
-  FORBIDDEN,
-  NOT_FOUND,
-  SERVER_ERROR,
-  SERVER_ERROR_MESSAGE,
+  BadRequestError,
+  ForbiddenError,
+  NotFoundError,
 } = require('../utils/errors');
 
 const throwCardNotFound = () => {
-  const error = new Error('Cartão não encontrado');
-  error.statusCode = NOT_FOUND;
-  throw error;
+  throw new NotFoundError('Cartão não encontrado');
 };
 
-const handleCardError = (err, res) => {
+const handleCardError = (err, next) => {
   if (err.name === 'ValidationError') {
-    return res.status(BAD_REQUEST).send({ message: 'Dados inválidos para o cartão' });
+    return next(new BadRequestError('Dados inválidos para o cartão'));
   }
   if (err.name === 'CastError') {
-    return res.status(BAD_REQUEST).send({ message: 'ID de cartão inválido' });
+    return next(new BadRequestError('ID de cartão inválido'));
   }
-  if (err.statusCode === NOT_FOUND || err.statusCode === FORBIDDEN) {
-    return res.status(err.statusCode).send({ message: err.message });
-  }
-  return res.status(SERVER_ERROR).send({ message: SERVER_ERROR_MESSAGE });
+  return next(err);
 };
 
-module.exports.getCards = (req, res) => {
+module.exports.getCards = (req, res, next) => {
   Card.find({})
+    .sort({ createdAt: -1 })
     .then((cards) => res.send(cards))
-    .catch((err) => handleCardError(err, res));
+    .catch(next);
 };
 
-module.exports.createCard = (req, res) => {
+module.exports.createCard = (req, res, next) => {
   const { name, link } = req.body;
-  const { _id: owner } = req.user;
 
-  Card.create({ name, link, owner })
+  Card.create({ name, link, owner: req.user._id })
     .then((card) => res.status(201).send(card))
-    .catch((err) => handleCardError(err, res));
+    .catch((err) => handleCardError(err, next));
 };
 
-module.exports.deleteCard = (req, res) => {
+module.exports.deleteCard = (req, res, next) => {
   Card.findById(req.params.cardId)
     .orFail(throwCardNotFound)
     .then((card) => {
       if (card.owner.toString() !== req.user._id) {
-        const error = new Error('Você não pode excluir o cartão de outro usuário');
-        error.statusCode = FORBIDDEN;
-        throw error;
+        throw new ForbiddenError('Você não pode excluir o cartão de outro usuário');
       }
       return card.deleteOne().then(() => res.send(card));
     })
-    .catch((err) => handleCardError(err, res));
+    .catch((err) => handleCardError(err, next));
 };
 
-module.exports.likeCard = (req, res) => {
-  const { _id: userId } = req.user;
-
+module.exports.likeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.cardId,
-    { $addToSet: { likes: userId } },
+    { $addToSet: { likes: req.user._id } },
     { new: true },
   )
     .orFail(throwCardNotFound)
     .then((card) => res.send(card))
-    .catch((err) => handleCardError(err, res));
+    .catch((err) => handleCardError(err, next));
 };
 
-module.exports.dislikeCard = (req, res) => {
-  const { _id: userId } = req.user;
-
+module.exports.dislikeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.cardId,
-    { $pull: { likes: userId } },
+    { $pull: { likes: req.user._id } },
     { new: true },
   )
     .orFail(throwCardNotFound)
     .then((card) => res.send(card))
-    .catch((err) => handleCardError(err, res));
+    .catch((err) => handleCardError(err, next));
 };
