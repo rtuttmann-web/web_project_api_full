@@ -28,13 +28,6 @@ app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 app.use(requestLogger); // registra cada requisição em request.log
 
-// teste do PM2 — remover depois da revisão
-app.get('/crash-test', () => {
-  setTimeout(() => {
-    throw new Error('O servidor travará agora');
-  }, 0);
-});
-
 // rotas públicas
 app.post('/signup', validateSignup, createUser);
 app.post('/signin', validateSignin, login);
